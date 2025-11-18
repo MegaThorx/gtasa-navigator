@@ -1,65 +1,102 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useState } from "react";
+import { Map, MapMarker, RoutePoint } from "@/components/map";
+import { Sidebar } from "@/components/sidebar";
+import { read } from "@/lib/neo4j";
+import { CoordinatePicker } from "@/components/coordinate-picker";
+import { Button } from "@/components/ui/button";
 
 export default function Home() {
+  const [markers, setMarkers] = useState<MapMarker[]>([]);
+  const [route, setRoute] = useState<RoutePoint[]>([]);
+  const [origin, setOrigin] = useState<{ x: number; y: number } | null>(null);
+  const [destination, setDestination] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+  const [clickMode, setClickMode] = useState<"origin" | "destination" | null>(
+    null,
+  );
+
+  const handleMapClick = (x: number, y: number) => {
+    if (clickMode === "origin") {
+      setOrigin({ x, y });
+      setClickMode("destination");
+      setMarkers([
+        ...markers.filter((marker) => marker.type !== "origin"),
+        { id: "origin", type: "origin", x, y },
+      ]);
+    } else if (clickMode === "destination") {
+      setDestination({ x, y });
+      setClickMode(null);
+      setMarkers([
+        ...markers.filter((marker) => marker.type !== "destination"),
+        { id: "destination", type: "destination", x, y },
+      ]);
+    }
+  };
+
+  const calculateRoute = async () => {
+    let response = await read(
+      `MATCH (startNode:RoadNode)
+     WITH startNode,
+          (startNode.x - ${origin?.x})^2 + (startNode.y - ${origin?.y})^2 + (startNode.z)^2 AS startDistanceSq
+     ORDER BY startDistanceSq
+     LIMIT 1
+     MATCH (endNode:RoadNode)
+     WITH startNode, endNode,
+          (endNode.x - ${destination?.x})^2 + (endNode.y - ${destination?.y})^2 + (endNode.z)^2 AS endDistanceSq
+     ORDER BY endDistanceSq
+     LIMIT 1
+     MATCH p=shortestPath((startNode)-[*]->(endNode))
+     RETURN p`,
+    );
+
+    response = JSON.parse(response);
+    console.log(response);
+
+    const newRoute = [];
+    newRoute.push({
+      x: response[0].p.start.properties.x,
+      y: response[0].p.start.properties.y,
+    });
+
+    for (const segment of response[0].p.segments) {
+      newRoute.push({
+        x: segment.start.properties.x,
+        y: segment.start.properties.y,
+      });
+      newRoute.push({
+        x: segment.end.properties.x,
+        y: segment.end.properties.y,
+      });
+    }
+
+    newRoute.push({
+      x: response[0].p.end.properties.x,
+      y: response[0].p.end.properties.y,
+    });
+
+    setRoute(newRoute);
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div className="h-screen w-full bg-slate-900 flex overflow-hidden relative">
+      <Sidebar>
+        <CoordinatePicker
+          origin={origin}
+          destination={destination}
+          onSetOriginClick={() => setClickMode("origin")}
+          onSetDestinationClick={() => setClickMode("destination")}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+        <Button variant="secondary" onClick={calculateRoute}>
+          Calculate route
+        </Button>
+      </Sidebar>
+      <div className="flex-1 relative">
+        <Map onMapClick={handleMapClick} markers={markers} route={route} />
+      </div>
     </div>
   );
 }
