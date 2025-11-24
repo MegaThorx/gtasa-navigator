@@ -1,23 +1,45 @@
-FROM oven/bun:1-alpine AS builder
+# Use Bun's official image
+FROM oven/bun:1 AS base
 
 WORKDIR /app
 
-COPY package.json bun.lock ./
+# Install dependencies with bun
+FROM base AS deps
+COPY package.json bun.lock* ./
+RUN bun install --no-save --frozen-lockfile
 
-RUN bun install --frozen-lockfile
-
+# Rebuild the source code only when needed
+FROM base AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+
+ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN bun run build
 
-FROM nginx:stable-alpine
+# Production image, copy all the files and run next
+FROM base AS runner
+WORKDIR /app
 
-RUN rm /etc/nginx/conf.d/default.conf
+ENV NEXT_TELEMETRY_DISABLED=1
 
-COPY nginx/nginx.conf /etc/nginx/conf.d/default.conf
+ENV NODE_ENV=production \
+    PORT=3000 \
+    HOSTNAME="0.0.0.0"
 
-COPY --from=builder /app/dist /usr/share/nginx/html
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
 
-EXPOSE 8080
+COPY --from=builder /app/public ./public
 
-CMD ["nginx", "-g", "daemon off;"]
+# Automatically leverage output traces to reduce image size
+# https://nextjs.org/docs/advanced-features/output-file-tracing
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+USER nextjs
+
+EXPOSE 3000
+
+CMD ["bun", "./server.js"]
