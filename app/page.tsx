@@ -45,12 +45,12 @@ export default function Home() {
 
   const calculateRoute = async () => {
     let apiResponse = await read(
-      `MATCH (startNode:RoadNode)
+      `MATCH (startNode:Road)
      WITH startNode,
           (startNode.x - ${origin?.x})^2 + (startNode.y - ${origin?.y})^2 + (startNode.z)^2 AS startDistanceSq
      ORDER BY startDistanceSq
      LIMIT 1
-     MATCH (endNode:RoadNode)
+     MATCH (endNode:Road)
      WITH startNode, endNode,
           (endNode.x - ${destination?.x})^2 + (endNode.y - ${destination?.y})^2 + (endNode.z)^2 AS endDistanceSq
      ORDER BY endDistanceSq
