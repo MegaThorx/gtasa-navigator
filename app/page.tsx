@@ -1,11 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Map, MapMarker, RoutePoint } from "@/components/map";
+import { useState } from "react";
+import dynamic from "next/dynamic";
+import { MapMarker, RoutePoint } from "@/components/map";
 import { Sidebar } from "@/components/sidebar";
 import { read } from "@/lib/neo4j";
 import { CoordinatePicker } from "@/components/coordinate-picker";
 import { Button } from "@/components/ui/button";
+
+const Map = dynamic(
+  () => import("@/components/map").then((mod) => ({ default: mod.Map })),
+  { ssr: false },
+);
 
 export default function Home() {
   const [markers, setMarkers] = useState<MapMarker[]>([]);
@@ -38,7 +44,7 @@ export default function Home() {
   };
 
   const calculateRoute = async () => {
-    let response = await read(
+    let apiResponse = await read(
       `MATCH (startNode:RoadNode)
      WITH startNode,
           (startNode.x - ${origin?.x})^2 + (startNode.y - ${origin?.y})^2 + (startNode.z)^2 AS startDistanceSq
@@ -53,7 +59,7 @@ export default function Home() {
      RETURN p`,
     );
 
-    response = JSON.parse(response);
+    let response = JSON.parse(apiResponse) as any[];
     console.log(response);
 
     const newRoute = [];
