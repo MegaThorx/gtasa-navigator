@@ -1,0 +1,31 @@
+name: Build & deploy GTA:SA Navigator
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3.10.0
+      - uses: docker/build-push-action@v6.18.0
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/megathorx/gtasa-navigator:latest
+      - name: curl
+        uses: sozo-design/curl@v1.0.2
+        env:
+          DEPLOY_URL: ${{ secrets.DEPLOY_URL }}
+        with:
+          args: $DEPLOY_URL
