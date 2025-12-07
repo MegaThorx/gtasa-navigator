@@ -39,3 +39,5 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 
 https://github.com/DeAardbolMan/SAMAP
 https://ian-albert.com/games/grand_theft_auto_san_andreas_maps/
+https://github.com/Toliak/San-Andreas-vector-map
+https://github.com/AmyrAhmady/samap

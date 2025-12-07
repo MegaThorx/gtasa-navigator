@@ -6,6 +6,7 @@ import {
   Polyline,
   TileLayer,
   useMapEvents,
+  Circle,
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L, { LeafletMouseEvent } from "leaflet";
@@ -43,12 +44,20 @@ const BOUNDS: L.LatLngBoundsLiteral = [
 
 function MapClickHandler({
   onMapClick,
+  onMapMove,
 }: {
   onMapClick: (x: number, y: number) => void;
+  onMapMove?: (center: { x: number; y: number }) => void;
 }) {
   useMapEvents({
     click: (event: LeafletMouseEvent) => {
       onMapClick(event.latlng.lng, event.latlng.lat);
+    },
+    moveend: (event) => {
+      if (onMapMove) {
+        const center = event.target.getCenter();
+        onMapMove({ x: center.lng, y: center.lat });
+      }
     },
   });
   return null;
@@ -66,18 +75,59 @@ export interface RoutePoint {
   y: number;
 }
 
+export interface RoadNode {
+  id: string | number;
+  x: number;
+  y: number;
+  z: number;
+}
+
+export interface RoadConnection {
+  from: string | number;
+  to: string | number;
+}
+
 export function Map({
-  onMapClick,
+  onMapClickAction: onMapClick,
+  onMapMoveAction: onMapMove,
   markers,
   route,
+  roadNodes,
+  roadConnections,
 }: {
-  onMapClick: (x: number, y: number) => void;
+  onMapClickAction: (x: number, y: number) => void;
+  onMapMoveAction?: (center: { x: number; y: number }) => void;
   markers: MapMarker[];
   route: RoutePoint[];
+  roadNodes?: RoadNode[];
+  roadConnections?: RoadConnection[];
 }) {
   const polylineRoute = useMemo(() => {
     return route.map((point) => [point.y, point.x] as L.LatLngTuple);
   }, [route]);
+
+  const connectionLines = useMemo(() => {
+    if (!roadNodes || !roadConnections) return [];
+
+    const nodeMap: Record<string | number, RoadNode> = {};
+    roadNodes.forEach((node) => {
+      nodeMap[node.id] = node;
+    });
+
+    return roadConnections
+      .map((conn) => {
+        const fromNode = nodeMap[conn.from];
+        const toNode = nodeMap[conn.to];
+        if (fromNode && toNode) {
+          return [
+            [fromNode.y, fromNode.x] as L.LatLngTuple,
+            [toNode.y, toNode.x] as L.LatLngTuple,
+          ];
+        }
+        return null;
+      })
+      .filter((line): line is L.LatLngTuple[] => line !== null);
+  }, [roadNodes, roadConnections]);
 
   return (
     <div className="w-full h-full relative">
@@ -100,7 +150,7 @@ export function Map({
           bounds={BOUNDS}
           keepBuffer={2}
         />
-        <MapClickHandler onMapClick={onMapClick} />
+        <MapClickHandler onMapClick={onMapClick} onMapMove={onMapMove} />
 
         {markers.map((marker) => {
           return (
@@ -124,6 +174,33 @@ export function Map({
             {/* <RouteBounds path={routePath} /> */}
           </>
         )}
+
+        {roadNodes &&
+          roadNodes.map((node) => (
+            <Circle
+              key={node.id}
+              center={[node.y, node.x] as L.LatLngExpression}
+              radius={10}
+              pathOptions={{
+                color: "#f59e0b",
+                fillColor: "#fbbf24",
+                fillOpacity: 0.6,
+                weight: 2,
+              }}
+            />
+          ))}
+
+        {connectionLines.map((line, index) => (
+          <Polyline
+            key={`connection-${index}`}
+            positions={line}
+            pathOptions={{
+              color: "#8b5cf6",
+              weight: 2,
+              opacity: 0.4,
+            }}
+          />
+        ))}
       </MapContainer>
     </div>
   );
