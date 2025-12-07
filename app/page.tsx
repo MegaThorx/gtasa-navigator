@@ -189,7 +189,7 @@ export default function Home() {
                   onClick={() => setMode(m.value)}
                   className={cn(
                     "flex flex-col items-center justify-center py-4 rounded-xl border-2 transition-all",
-                    mode === m.id
+                    mode === m.value
                       ? "bg-gradient-to-br from-cyan-500/20 to-purple-500/20 border-cyan-400 shadow-lg shadow-cyan-500/20"
                       : "bg-slate-800/50 border-slate-700 hover:border-slate-600 hover:bg-slate-800",
                   )}
