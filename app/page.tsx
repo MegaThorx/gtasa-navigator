@@ -10,20 +10,11 @@ import {
   RoadConnection,
 } from "@/components/map";
 import { Sidebar } from "@/components/sidebar";
-import { read } from "@/lib/neo4j";
+import { findRoute, showNodesWithin } from "@/lib/neo4j";
 import { CoordinatePicker } from "@/components/coordinate-picker";
 import { Button } from "@/components/ui/button";
-import { RecordShape } from "neo4j-driver-core/types/record";
 import { Label } from "@/components/ui/label";
-import {
-  Car,
-  IconNode,
-  LucideIcon,
-  PersonStanding,
-  Route,
-  Ship, 
-  BookOpen,
-} from "lucide-react";
+import { Car, LucideIcon, PersonStanding, BookOpen, Route, Ship } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -77,85 +68,25 @@ export default function Home() {
   }, []);
 
   const calculateRoute = async () => {
-    const apiResponse = await read(
-      `MATCH (startNode:PathNode {type: "${mode}"${mode === "Car" ? (avoidHighways ? ", is_highway: false" : "") : ""}})
-     WITH startNode,
-          (startNode.x - ${origin?.x})^2 + (startNode.y - ${origin?.y})^2 + (startNode.z)^2 AS startDistanceSq
-     ORDER BY startDistanceSq
-     LIMIT 1
-     MATCH (endNode:PathNode {type: "${mode}"${mode === "Car" ? (avoidHighways ? ", is_highway: false" : "") : ""}})
-     WITH startNode, endNode,
-          (endNode.x - ${destination?.x})^2 + (endNode.y - ${destination?.y})^2 + (endNode.z)^2 AS endDistanceSq
-     ORDER BY endDistanceSq
-     LIMIT 1
-     MATCH p=shortestPath((startNode)-[${mode === "Car" ? (avoidHighways ? ":NOT_HIGHWAY" : ":CONNECTS_TO") : ":CONNECTS_TO"}*1..1000]->(endNode))
-     RETURN p`,
+    const route = await findRoute(
+      origin ?? { x: 0, y: 0 },
+      destination ?? { x: 0, y: 0 },
+      mode,
+      avoidHighways,
     );
 
-    const response = JSON.parse(apiResponse) as RecordShape[];
-    console.log(response);
-
-    const newRoute = [];
-    newRoute.push({
-      x: response[0].p.start.properties.x,
-      y: response[0].p.start.properties.y,
-    });
-
-    for (const segment of response[0].p.segments) {
-      newRoute.push({
-        x: segment.start.properties.x,
-        y: segment.start.properties.y,
-      });
-      newRoute.push({
-        x: segment.end.properties.x,
-        y: segment.end.properties.y,
-      });
-    }
-
-    newRoute.push({
-      x: response[0].p.end.properties.x,
-      y: response[0].p.end.properties.y,
-    });
-
-    setRoute(newRoute);
+    setRoute(route);
   };
 
   const visualizeNodes = async () => {
-    const halfRange = 1000;
+    const halfRange = 200;
+    const result = await showNodesWithin(
+      { x: mapCenter.x - halfRange, y: mapCenter.y - halfRange },
+      { x: mapCenter.x + halfRange, y: mapCenter.y + halfRange },
+    );
 
-    const nodesQuery = `
-      MATCH (n:PathNode)
-      WHERE n.x >= ${mapCenter.x - halfRange} AND n.x <= ${mapCenter.x + halfRange}
-        AND n.y >= ${mapCenter.y - halfRange} AND n.y <= ${mapCenter.y + halfRange}
-      RETURN n.nodeId as id, n.x as x, n.y as y, n.z as z
-    `;
-
-    const nodesResponse = await read(nodesQuery);
-    const nodes = JSON.parse(nodesResponse) as RoadNode[];
-
-    if (nodes.length === 0) {
-      alert("No nodes found in this area");
-      return;
-    }
-
-    const nodeIds = nodes.map((n) => n.id);
-
-    const connectionsQuery = `
-      MATCH (n1:PathNode)-[r]->(n2:PathNode)
-      WHERE n1.nodeId IN [${nodeIds.join(",")}]
-        AND n2.nodeId IN [${nodeIds.join(",")}]
-      RETURN n1.nodeId as from, n2.nodeId as to
-    `;
-
-    console.log(nodeIds);
-    console.log(nodesQuery);
-    console.log(connectionsQuery);
-
-    const connectionsResponse = await read(connectionsQuery);
-    const connections = JSON.parse(connectionsResponse) as RoadConnection[];
-
-    setRoadNodes(nodes);
-    setRoadConnections(connections);
+    setRoadNodes(result.nodes);
+    setRoadConnections(result.connections);
     setShowingNodes(true);
   };
 
