@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import {
   MapMarker,
   RoutePoint,
@@ -20,7 +21,8 @@ import {
   LucideIcon,
   PersonStanding,
   Route,
-  Ship,
+  Ship, 
+  BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
@@ -247,6 +249,7 @@ export default function Home() {
         <Button variant="secondary" onClick={calculateRoute}>
           Calculate route
         </Button>
+
         <div className="pt-4 border-t border-slate-700">
           <p className="text-xs text-slate-400 mb-2">
             View nodes in 200x200 area
@@ -273,7 +276,19 @@ export default function Home() {
               </p>
             </div>
           )}
+                  <div className="my-4">
+          <Link href="/docs" className="w-full block">
+            <Button 
+              variant="ghost" 
+              className="w-full text-slate-400 hover:text-cyan-400 hover:bg-slate-800 border border-transparent hover:border-slate-700 transition-all"
+            >
+              <BookOpen className="w-4 h-4 mr-2" />
+              Dokumentation
+            </Button>
+          </Link>
         </div>
+        </div>
+        
       </Sidebar>
       <div className="flex-1 relative">
         <Map
