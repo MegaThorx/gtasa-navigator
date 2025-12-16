@@ -80,7 +80,7 @@ const docSections: DocSection[] = [
              />
         </div>
         
-        <div className="space-y-2">
+      <div className="space-y-2">
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Node Structure</span>
             <div className="bg-slate-950 p-4 rounded-lg border border-slate-800 font-mono text-sm overflow-x-auto shadow-inner">
               <span className="text-green-400 block mb-2">// Beispiel: Node</span>
@@ -107,7 +107,7 @@ const docSections: DocSection[] = [
         </div>
 
         <div className="space-y-2">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Relationship Structure</span>
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Edge Structure</span>
             <div className="bg-slate-950 p-4 rounded-lg border border-slate-800 font-mono text-sm overflow-x-auto shadow-inner">
             <span className="text-green-400 block mb-2">// Beispiel: Edge</span>
             <div className="text-blue-300 mb-1">Edge ID: 5:0a462e1b-8cda-4bcd-a3eb-faa4f7e1c95f:113343</div>
@@ -131,8 +131,6 @@ const docSections: DocSection[] = [
           Die Routenberechnung erfolgt serverseitig direkt in der Datenbank.
           Wir nutzen Neo4j's <code>shortestPath</code> Funktion.
         </p>
-
-        <p className="text-xs text-center text-slate-500 mt-2">Visualisierung des Graphen-Netzwerks</p>
         
         <Card className="bg-slate-800/50 border-slate-700 mt-4">
           <CardContent className="p-4">
@@ -141,7 +139,7 @@ const docSections: DocSection[] = [
               <li>Klick-Koordinaten (Start/Ziel) erfassen.</li>
               <li>Nächste verfügbare Nodes in der DB finden (Nearest Neighbor).</li>
               <li>Filter anwenden (z.B. <code>is_highway: false</code>).</li>
-              <li>Graph-Traversal (Dijkstra/A*) ausführen.</li>
+              <li>Shortest Path Algorythmus.</li>
               <li>Pfad als Array von Koordinaten zurückgeben.</li>
             </ol>
           </CardContent>
@@ -159,9 +157,10 @@ const docSections: DocSection[] = [
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {[
             { title: "Fußgänger Routing", desc: "Vermeidet Autobahnen, nutzt Gehwege." },
+            
             { title: "Auto (Schnell)", desc: "Bevorzugt Highways und Hauptstraßen." },
+
             { title: "Auto (Landschaft)", desc: "Vermeidet Highways, nutzt Nebenstraßen." },
-            { title: "Zukunft: Boot", desc: "Routing nur auf Wasser-Knoten." }
           ].map((uc, i) => (
             <div key={i} className="bg-slate-800 p-4 rounded border border-slate-700 hover:border-cyan-500/50 transition-colors">
                <strong className="text-cyan-400 block mb-1">{uc.title}</strong>
@@ -169,14 +168,76 @@ const docSections: DocSection[] = [
             </div>
           ))}
         </div>
+          <p className="text-slate-300">Use Case 1</p>
+            <div className="space-y-2">
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Fußgänger Routing</span>
+            <div className="bg-slate-950 p-4 rounded-lg border border-slate-800 font-mono text-sm overflow-x-auto shadow-inner">
+            <pre className="text-orange-300">
+      {`MATCH (startNode:PathNode {type: 'Ped'})
+        WITH startNode,
+            (startNode.x - ORIGIN_X)^2 + (startNode.y - ORIGIN_Y)^2 AS startDistanceSq
+        ORDER BY startDistanceSq
+        LIMIT 1
+        MATCH (endNode:PathNode {type: 'Ped'})
+        WITH startNode, endNode,
+            (endNode.x - DESTINATION_X)^2 + (endNode.y - DESTINATION_Y)^2 AS endDistanceSq
+        ORDER BY endDistanceSq
+        LIMIT 1
+        MATCH p=shortestPath((startNode)-[:CONNECTS_TO*1..1000]->(endNode))
+        RETURN p`}
+              </pre>
+              </div>
+        </div>
+        
+        <p className="text-slate-300">Use Case 2</p>
+            <div className="space-y-2">
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Auto Schnell</span>
+            <div className="bg-slate-950 p-4 rounded-lg border border-slate-800 font-mono text-sm overflow-x-auto shadow-inner">
+              <pre className="text-orange-300">
+      {`MATCH (startNode:PathNode {type: 'Car'})
+        WITH startNode,
+          (startNode.x - ORIGIN_X)^2 + (startNode.y - ORIGIN_Y)^2 AS startDistanceSq
+        ORDER BY startDistanceSq
+        LIMIT 1
+        MATCH (endNode:PathNode {type: 'Car'})
+        WITH startNode, endNode,
+          (endNode.x - DESTINATION_X)^2 + (endNode.y - DESTINATION_Y)^2 AS endDistanceSq
+        ORDER BY endDistanceSq
+        LIMIT 1
+        MATCH p=shortestPath((startNode)-[:NOT_HIGHWAY*1..1000]->(endNode))
+        RETURN p`}
+              </pre>
+              </div>
+        </div>
+
+        <p className="text-slate-300">Use Case 3</p>
+              <div className="space-y-2">
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Auto Landschaft</span>
+            <div className="bg-slate-950 p-4 rounded-lg border border-slate-800 font-mono text-sm overflow-x-auto shadow-inner">
+              <pre className="text-orange-300">
+      {`MATCH (startNode:PathNode {type: 'Car', is_highway: false })
+        WITH startNode,
+          (startNode.x - ORIGIN_X)^2 + (startNode.y - ORIGIN_Y)^2 AS startDistanceSq
+        ORDER BY startDistanceSq
+        LIMIT 1
+        MATCH (endNode:PathNode {type: 'Car', is_highway: false })
+        WITH startNode, endNode,
+          (endNode.x - DESTINATION_X)^2 + (endNode.y - DESTINATION_Y)^2 AS endDistanceSq
+        ORDER BY endDistanceSq
+        LIMIT 1
+        MATCH p=shortestPath((startNode)-[:NOT_HIGHWAY*1..1000]->(endNode))
+        RETURN p`}
+              </pre>
+            </div>
+        </div>
       </div>
+    
+    
     ),
-  },
+  }, 
 ];
 
-// ------------------------------------------------------------------
-// PAGE COMPONENT
-// ------------------------------------------------------------------
+
 
 export default function DocumentationPage() {
   const [activeSection, setActiveSection] = useState(docSections[0].id);
