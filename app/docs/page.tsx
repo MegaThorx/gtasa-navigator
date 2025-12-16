@@ -211,7 +211,7 @@ const docSections: DocSection[] = [
         </div>
 
         <p className="text-slate-300">Use Case 3</p>
-              <div className="space-y-2">
+        <div className="space-y-2">
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Auto Landschaft</span>
             <div className="bg-slate-950 p-4 rounded-lg border border-slate-800 font-mono text-sm overflow-x-auto shadow-inner">
               <pre className="text-orange-300">
@@ -227,6 +227,23 @@ const docSections: DocSection[] = [
         LIMIT 1
         MATCH p=shortestPath((startNode)-[:NOT_HIGHWAY*1..1000]->(endNode))
         RETURN p`}
+              </pre>
+            </div>
+        </div>
+                <p className="text-slate-300">Use Case 4</p>
+        <div className="space-y-2">
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Punkte im Umkreis von 200x200</span>
+            <div className="bg-slate-950 p-4 rounded-lg border border-slate-800 font-mono text-sm overflow-x-auto shadow-inner">
+              <pre className="text-orange-300">
+      {`MATCH (n:PathNode)
+    WHERE n.x >= ORIGIN_X AND n.x <= DESTINATION_X
+      AND n.y >= ORIGIN_Y AND n.y <= DESTINATION_Y
+    RETURN elementId(n) as id, n.area_id as area_id, n.node_id as node_id, n.x as x, n.y as y, n.z as z
+ 
+      MATCH (n1:PathNode)-[r]->(n2:PathNode)
+    WHERE elementId(n1) IN [NODE_IDS]
+        AND elementId(n2) IN [NODE_IDS]
+    RETURN elementId(n1) as from, elementId(n2) as to`}
               </pre>
             </div>
         </div>
